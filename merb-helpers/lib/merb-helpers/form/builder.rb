@@ -121,6 +121,14 @@ module Merb::Helpers::Form::Builder
       update_unbound_controls(attrs, "submit")
       self_closing_tag(:input, attrs)
     end
+    
+    def image_submit(src, attrs)
+      attrs[:type]  ||= "image"
+      attrs[:name]  ||= "submit"
+      attrs[:src]   ||= src
+      update_unbound_controls(attrs, "image_submit")
+      self_closing_tag(:input, attrs)
+    end
 
     private
 
@@ -346,6 +354,10 @@ module Merb::Helpers::Form::Builder
     end
 
     def submit(value, attrs = {})
+      unbound_label(attrs) + super
+    end
+    
+    def image_submit(src, attrs = {})
       unbound_label(attrs) + super
     end
 

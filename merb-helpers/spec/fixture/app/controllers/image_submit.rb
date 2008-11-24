@@ -1,0 +1,2 @@
+class ImageSubmitSpecs < SpecController
+end

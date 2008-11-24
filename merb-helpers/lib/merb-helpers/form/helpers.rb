@@ -414,6 +414,22 @@ module Merb::Helpers::Form
   def submit(contents, attrs = {})
     current_form_context.submit(contents, attrs)
   end
+  
+  # Generates a HTML image submit button.
+  #
+  # ==== Parameters
+  # src<String>:: Sets the src="" attribute of the image
+  # attrs<Hash>:: HTML attributes
+  #
+  # ==== Returns
+  # String:: HTML
+  #
+  # ==== Example
+  #   <%= image_submit "submit.png" %> #=> <input type="image" src="submit.png" />
+  #   <%= image_submit "/images/submit.png" %> #=> <input type="image" src="/images/submit.png" />
+  def image_submit(contents, attrs = {})
+    current_form_context.image_submit(contents, attrs)
+  end
 
   # Provides a HTML formatted display of resource errors in an unordered list with a h2 form submission error
   #

@@ -1137,6 +1137,29 @@ describe "submit" do
   end  
 end
 
+describe "image_submit" do
+
+  before :each do
+    @c = ImageSubmitSpecs.new(Merb::Request.new({}))
+  end  
+  
+  it "should return a basic image submit" do
+    r = @c.render :default
+    r.should have_selector("input[type=image][src='/images/submit.png']")
+  end
+
+  it "should provide an additional label tag if the :label option is passed in" do
+    r = @c.render :default_with_label
+    r.should have_selector("input[type=image][src='/images/submit.png']")
+    r.should have_selector("label:contains('LABEL')")
+  end
+  
+  it "should be disabled if :disabled => true is passed in" do
+    r = @c.render :disabled
+    r.should have_selector("input[type=image][src='/images/submit.png'][disabled=disabled]")
+  end  
+end
+
 describe "button" do
 
   before :each do
