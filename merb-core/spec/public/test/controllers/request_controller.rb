@@ -1,7 +1,7 @@
 module Merb::Test
   class RequestController < Merb::Controller
     
-    def method
+    def request_method
       "Method - #{request.method.to_s.upcase}"
     end
     
@@ -54,6 +54,12 @@ module Merb::Test
     
     def domain_get
       cookies[:cookie]
+    end
+    
+    def multiple
+      cookies[:one] = (cookies[:one] || 0).to_i + 1
+      cookies[:two] = (cookies[:two] || 0).to_i + 1
+      "#{cookies[:one]} - #{cookies[:two]}"
     end
     
     # Don't actually set any cookies

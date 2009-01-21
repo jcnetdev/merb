@@ -3,7 +3,7 @@ require 'rubygems/dependency'
 module Gem
   class Dependency
     # :api: private
-    attr_accessor :require_block, :require_as
+    attr_accessor :require_block, :require_as, :original_caller
   end
 end
 
@@ -18,11 +18,12 @@ module Kernel
   # @return <Gem::Dependency> Dependency information
   #
   # :api: private
-  def track_dependency(name, *ver, &blk)
-    options = ver.pop if ver.last.is_a?(Hash)
+  def track_dependency(name, clr, *ver, &blk)
+    options = ver.last.is_a?(Hash) ? ver.pop : {}
     new_dep = Gem::Dependency.new(name, ver.empty? ? nil : ver)
     new_dep.require_block = blk
-    new_dep.require_as = (options && options[:require_as]) || name
+    new_dep.require_as = options.key?(:require_as) ? options[:require_as] : name
+    new_dep.original_caller = clr
     
     deps = Merb::BootLoader::Dependencies.dependencies
 
@@ -34,7 +35,7 @@ module Kernel
 
     new_dep
   end
-  
+
   # Loads the given string as a gem. Execution is deferred until
   # after the logger has been instantiated and the framework directory
   # structure is defined.
@@ -49,16 +50,70 @@ module Kernel
   #   If the last argument is a Hash, extract the :immediate option,
   #   forcing a dependency to load immediately.
   #
+  # ==== Options
+  #
+  # :immediate   when true, gem is loaded immediately even if framework is not yet ready.
+  # :require_as  file name to require for this gem.
+  #
+  # See examples below.
+  #
+  # ==== Notes
+  #
+  # If block is given, it is called after require is called. If you use a block to
+  # require multiple files, require first using :require_as option and the rest
+  # in the block.
+  #
+  # ==== Examples
+  #
+  # Usage scenario is typically one of the following:
+  #
+  # 1. Gem name and loaded file names are the same (ex.: amqp gem uses amqp.rb).
+  #    In this case no extra options needed.
+  #
+  # dependency "amqp"
+  #
+  # 2. Gem name is different from the file needs to be required
+  #    (ex.: ParseTree gem uses parse_tree.rb as main file).
+  #
+  # dependency "ParseTree", :require_as => "parse_tree"
+  #
+  # 3. You need to require a number of files from the library explicitly
+  #    (ex.: cherry pick features from xmpp4r). Pass an array to :require_as.
+  #
+  # dependency "xmpp4r", :require_as => %w(xmpp4r/client xmpp4r/sasl xmpp4r/vcard)
+  #
+  # 4. You need to require a specific version of the gem.
+  #
+  # dependency "RedCloth", "3.0.4"
+  #
+  # 5. You want to load dependency as soon as the method is called.
+  #
+  # dependency "syslog", :immediate => true
+  #
+  # 6. You need to execute some arbitraty code after dependency is loaded:
+  #
+  # dependency "ruby-growl" do
+  #   g = Growl.new "localhost", "ruby-growl",
+  #              ["ruby-growl Notification"]
+  #   g.notify "ruby-growl Notification", "Ruby-Growl is set up",
+  #         "Ruby-Growl is set up"
+  # end
+  #
+  # When specifying a gem version to use, you can use the same syntax RubyGems
+  # support, for instance, >= 3.0.2 or >~ 1.2.
+  #
+  # See rubygems.org/read/chapter/16 for a complete reference.
+  #
   # ==== Returns
   # Gem::Dependency:: The dependency information.
   #
   # :api: public
-  def dependency(name, *ver, &blk)
-    immediate = ver.last.delete(:immediate) if ver.last.is_a?(Hash)
+  def dependency(name, *opts, &blk)
+    immediate = opts.last.delete(:immediate) if opts.last.is_a?(Hash)
     if immediate || Merb::BootLoader.finished?(Merb::BootLoader::Dependencies)
-      load_dependency(name, *ver, &blk)
+      load_dependency(name, caller, *opts, &blk)
     else
-      track_dependency(name, *ver, &blk)
+      track_dependency(name, caller, *opts, &blk)
     end
   end
 
@@ -80,15 +135,20 @@ module Kernel
   # @return <Gem::Dependency> The dependency information.
   #
   # :api: private
-  def load_dependency(name, *ver, &blk)
-    dep = name.is_a?(Gem::Dependency) ? name : track_dependency(name, *ver, &blk)
-    gem(dep)
-  rescue Gem::LoadError => e
-    Merb.fatal! "The gem #{name}, #{ver.inspect} was not found", e
-  ensure
+  def load_dependency(name, clr, *ver, &blk)
+    begin
+      dep = name.is_a?(Gem::Dependency) ? name : track_dependency(name, clr, *ver, &blk)
+      return unless dep.require_as
+      Gem.activate(dep)
+    rescue Gem::LoadError => e
+      e.set_backtrace dep.original_caller
+      Merb.fatal! "The gem #{name}, #{ver.inspect} was not found", e
+    end
+  
     begin
       require dep.require_as
     rescue LoadError => e
+      e.set_backtrace dep.original_caller
       Merb.fatal! "The file #{dep.require_as} was not found", e
     end
 

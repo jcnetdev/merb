@@ -38,6 +38,7 @@ $MINIGEMS_SKIPPABLE = ['encoding/character/utf-8']
 module Merb
   # Create stub module for global controller helpers.
   module GlobalHelpers; end
+  class ReservedError < StandardError; end
   
   class << self
     attr_reader :exiting
@@ -437,6 +438,9 @@ module Merb
     #
     # :api: private
     def fatal!(str, e = nil)
+      Merb::Config[:log_stream] = STDOUT if STDOUT.tty?
+      Merb.reset_logger!
+      
       Merb.logger.fatal!
       Merb.logger.fatal!("\e[1;31;47mFATAL: #{str}\e[0m")
       Merb.logger.fatal!
@@ -453,9 +457,9 @@ module Merb
     # Print a colorized backtrace to the merb logger.
     #
     # :api: private
-    def print_colorized_backtrace(e)
+    def print_colorized_backtrace(e)      
       e.backtrace.map! do |line|
-        line.gsub!(/^#{Merb.framework_root}/, "\e[34mFRAMEWORK_ROOT\e[31m")
+        line.gsub(/^#{Merb.framework_root}/, "\e[34mFRAMEWORK_ROOT\e[31m")
       end
       
       Merb.logger.fatal! "\e[34mFRAMEWORK_ROOT\e[0m = #{Merb.framework_root}"
@@ -779,6 +783,9 @@ module Merb
       RUBY_PLATFORM =~ Merb::Const::WIN_PLATFORM_REGEXP
     end
 
+    def run_later(&blk)
+      Merb::Dispatcher.work_queue << blk
+    end
   end
 end
 

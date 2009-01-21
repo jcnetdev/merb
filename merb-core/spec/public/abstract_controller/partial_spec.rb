@@ -3,6 +3,11 @@ startup_merb
 
 describe Merb::AbstractController, " Partials" do
   
+  def dispatch(klass, *args)
+    k = Merb::Test::Fixtures::Abstract.const_get(klass)
+    dispatch(k, *args)
+  end
+  
   it "should work with no options" do
     dispatch_should_make_body("BasicPartial", "Index Partial")
   end
@@ -32,7 +37,7 @@ describe Merb::AbstractController, " Partials" do
   end
   
   it "should work with key/value pairs of locals that override helpers" do
-    dispatch_should_make_body("PartialWithLocalsOverridingHelpers", "Partial with local")
+    dispatch_should_make_body("PartialWithLocalsOverridingHelpers", "Partial with [\"local\"]")
   end
   
   it "should work with different calls to the same partial having different sets of locals" do
@@ -67,4 +72,14 @@ describe Merb::AbstractController, " Partials" do
     dispatch_should_make_body("WithAbsolutePartial", "Index Absolute Partial")
   end
   
+  it "should handle partials compiled with different locals" do
+    dispatch_should_make_body("PartialWithMultipleLocals", "Bar: \"baz\"; Baz: \"\"", :first)
+    dispatch_should_make_body("PartialWithMultipleLocals", "Bar: \"\"; Baz: \"bat\"", :second)
+    dispatch_should_make_body("PartialWithMultipleLocals", "Bar: \"bat\"; Baz: \"\"", :third)
+  end
+  
+  it "should handle partials with absolute paths" do
+    dispatch_should_make_body("PartialWithAbsolutePath", "Hello world", :index)
+  end
+    
 end

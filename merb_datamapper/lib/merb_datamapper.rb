@@ -42,7 +42,7 @@ if defined?(Merb::Plugins)
 
       # make sure all relationships are initialized after loading
       descendants = DataMapper::Resource.descendants.dup
-      descendants.each do |model|
+      descendants.dup.each do |model|
         descendants.merge(model.descendants) if model.respond_to?(:descendants)
       end
       descendants.each do |model|
@@ -53,8 +53,37 @@ if defined?(Merb::Plugins)
     end
   end
 
+  # wrap action in repository block to enable identity map
+  class Application < Merb::Controller
+    override! :_call_action
+    def _call_action(*)
+      repository do |r|
+        Merb.logger.debug "In repository block #{r.name}"
+        super
+      end
+    end
+  end
+
   generators = File.join(File.dirname(__FILE__), 'generators')
   Merb.add_generators generators / 'data_mapper_model'
   Merb.add_generators generators / 'data_mapper_resource_controller'
   Merb.add_generators generators / 'data_mapper_migration'
+  
+  # Override bug in DM::Timestamps
+  Merb::BootLoader.after_app_loads do
+    module DataMapper
+      module Timestamp
+        private
+        
+        def set_timestamps
+          return unless dirty? || new_record?
+          TIMESTAMP_PROPERTIES.each do |name,(_type,proc)|
+            if model.properties.has_property?(name)
+              model.properties[name].set(self, proc.call(self, model.properties[name])) unless attribute_dirty?(name)
+            end
+          end
+        end
+      end
+    end
+  end
 end

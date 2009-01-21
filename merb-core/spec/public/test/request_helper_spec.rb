@@ -18,7 +18,7 @@ describe Merb::Test::RequestHelper do
   end
   
   it "should dispatch a request using GET by defalt" do
-    request("/method").should have_body("Method - GET")
+    request("/request_method").should have_body("Method - GET")
   end
   
   it "should work with have_selector" do
@@ -30,7 +30,7 @@ describe Merb::Test::RequestHelper do
   end
   
   it "should work with have_content" do
-    request("/method").should contain("Method")
+    request("/request_method").should contain("Method")
   end
   
   it "should persist cookies across sequential cookie setting requests" do
@@ -62,6 +62,12 @@ describe Merb::Test::RequestHelper do
     request("/counter", :jar => :two).should have_body("1")
     request("/counter", :jar => :one).should have_body("2")
     request("/counter", :jar => :two).should have_body("2")
+  end
+
+  it 'should allow a cookie to be set' do
+    cookie = request("/counter").headers['Set-Cookie']
+    request("/delete")
+    request("/counter", :cookie => cookie).should have_body("2")
   end
   
   it "should respect cookie domains when no domain is explicitly set" do
@@ -113,6 +119,11 @@ describe Merb::Test::RequestHelper do
     request("http://test.com/domain_set").should be_successful
     request("http://one.test.com/domain_set").should be_successful
     request("http://test.com/domain_get").should have_body("test.com")
+  end
+  
+  it "should be able to handle multiple cookies" do
+    request("/multiple").should have_body("1 - 1")
+    request("/multiple").should have_body("2 - 2")
   end
   
   it "should respect the expiration" do

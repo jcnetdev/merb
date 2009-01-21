@@ -136,5 +136,26 @@ module Merb::Test::Fixtures
         render
       end
     end
+    
+    class PartialWithMultipleLocals < RenderIt
+      def first
+        partial :foo, :bar => "baz"
+      end
+      
+      def second
+        partial :foo, :baz => "bat"
+      end
+      
+      def third
+        partial :foo, :bar => "bat"
+      end
+    end
+    
+    class PartialWithAbsolutePath < RenderIt
+      def index
+        partial "#{File.expand_path(File.dirname(__FILE__))}/views/partial/basic_partial/partial2",
+          :with => "Hello world"
+      end
+    end
   end
 end

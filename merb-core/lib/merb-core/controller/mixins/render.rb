@@ -15,6 +15,10 @@ module Merb::RenderMixin
 
   module ClassMethods
 
+    def _templates_for
+      @_templates_for ||= {}
+    end
+
     # Return the default render options.
     #
     # ==== Returns
@@ -122,7 +126,7 @@ module Merb::RenderMixin
       # Raise an error if there's no template
       unless template_method && self.respond_to?(template_method)
         template_files = Merb::Template.template_extensions.map { |ext| "#{template_location}.#{ext}" }
-        raise TemplateNotFound, "Oops! No template found. Merb was looking for #{template_files.join(', ')}" + 
+        raise TemplateNotFound, "Oops! No template found. Merb was looking for #{template_files.join(', ')} " + 
           "for content type '#{content_type}'. You might have mispelled the template or file name. " + 
           "Registered template extensions: #{Merb::Template.template_extensions.join(', ')}. " +
           "If you use Haml or some other template plugin, make sure you required Merb plugin dependency " + 
@@ -293,8 +297,8 @@ module Merb::RenderMixin
       template_path = File.dirname(template) / "_#{File.basename(template)}"
     else
       kontroller = (m = template.match(/.*(?=\/)/)) ? m[0] : controller_name
-      template = "_#{File.basename(template)}"
     end
+    template = "_#{File.basename(template)}"
 
     # This handles no :with as well
     with = [opts.delete(:with)].flatten
@@ -408,6 +412,9 @@ module Merb::RenderMixin
   #
   # :api: private
   def _template_for(context, content_type, controller=nil, template=nil, locals=[])
+    tmp = self.class._templates_for[[context, content_type, controller, template, locals]]
+    return tmp if tmp
+
     template_method, template_location = nil, nil
 
     # absolute path to a template (:template => "/foo/bar")
@@ -424,12 +431,16 @@ module Merb::RenderMixin
       else
         template_location = root / self.send(template_meth, context, content_type, controller)
       end
-      
+    
       break if template_method = _template_method_for(template_location.to_s, locals)
     end
 
     # template_location is a Pathname
-    [template_method, template_location.to_s]
+    ret = [template_method, template_location.to_s]
+    unless Merb::Config[:reload_templates]
+      self.class._templates_for[[context, content_type, controller, template, locals]] = ret
+    end
+    ret
   end
   
   # Return the template method for a location, and check to make sure the current controller
@@ -513,7 +524,7 @@ module Merb::RenderMixin
     unless string || block_given?
       raise ArgumentError, "You must pass a block or a string into append_content"
     end
-    @_caught_content[obj] = [] if @_caught_content[obj].nil?
+    @_caught_content[obj] = "" if @_caught_content[obj].nil?
     @_caught_content[obj] << string.to_s << (block_given? ? capture(&block) : "")
   end
 

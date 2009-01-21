@@ -33,11 +33,13 @@ module Merb
           @__cookie_jar__ ||= Merb::Test::CookieJar.new
           # Grab the cookie group name
           jar = env.delete(:jar) || :default
+          # Add the cookies explicitly set by the user
+          @__cookie_jar__.update(jar, uri, env.delete(:cookie)) if env.has_key?(:cookie)
           # Set the cookie header with the cookies
           env["HTTP_COOKIE"] = @__cookie_jar__.for(jar, uri)
         end
         
-        app = Merb::Rack::Application.new
+        app = Merb::Config[:app]
         rack = app.call(::Rack::MockRequest.env_for(uri.to_s, env))
 
         rack = Struct.new(:status, :headers, :body, :url, :original_env).

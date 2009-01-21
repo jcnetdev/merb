@@ -32,26 +32,29 @@ module Merb::Template
       path.gsub(/[^\.a-zA-Z0-9]/, "__").gsub(/\./, "_")
     end
 
-    # For a given path, get an IO object that responds to #path.
-    #
-    # This is so that plugins can override this if they provide
-    # mechanisms for specifying templates that are not just simple
-    # files. The plugin is responsible for ensuring that the fake
-    # path provided will work with #template_for, and thus the
-    # RenderMixin in general.
-    #
-    # ==== Parameters
-    # path<String>:: A full path to find a template for. This is the
-    #   path that the RenderMixin assumes it should find the template
-    #   in.
-    # 
-    # ==== Returns
-    # IO#path:: An IO object that responds to path (File or VirtualFile).
-    #
-    # :api: plugin
-    # @overridable
-    def load_template_io(path)
-      File.open(path, "r")
+    chainable do
+      # For a given path, get an IO object that responds to #path.
+      #
+      # This is so that plugins can override this if they provide
+      # mechanisms for specifying templates that are not just simple
+      # files. The plugin is responsible for ensuring that the fake
+      # path provided will work with #template_for, and thus the
+      # RenderMixin in general.
+      #
+      # ==== Parameters
+      # path<String>:: A full path to find a template for. This is the
+      #   path that the RenderMixin assumes it should find the template
+      #   in.
+      # 
+      # ==== Returns
+      # IO#path:: An IO object that responds to path (File or VirtualFile).
+      #
+      # :api: plugin
+      # @overridable
+      def load_template_io(path)
+        file = Dir["#{path}.{#{template_extensions.join(',')}}"].first
+        File.open(file, "r") if file
+      end
     end
 
     # Get the name of the template method for a particular path.
@@ -69,8 +72,8 @@ module Merb::Template
       path = File.expand_path(path)
       
       if needs_compilation?(path, locals)
-        file = Dir["#{path}.{#{template_extensions.join(',')}}"].first
-        METHOD_LIST[path] = file ? inline_template(load_template_io(file), locals) : nil
+        template_io = load_template_io(path)
+        METHOD_LIST[path] = inline_template(template_io, locals) if template_io
       end
       
       METHOD_LIST[path]
@@ -129,9 +132,10 @@ module Merb::Template
       full_file_path = File.expand_path(io.path)
       engine_neutral_path = full_file_path.gsub(/\.[^\.]*$/, "")
       
-      SUPPORTED_LOCALS_LIST[engine_neutral_path] |= locals unless locals.empty?
+      local_list = (SUPPORTED_LOCALS_LIST[engine_neutral_path] |= locals)
       ret = METHOD_LIST[engine_neutral_path] =
-        engine_for(full_file_path).compile_template(io, template_name(full_file_path), locals, mod)
+        engine_for(full_file_path).compile_template(io, 
+        template_name(full_file_path), local_list, mod)
         
       io.close
       ret

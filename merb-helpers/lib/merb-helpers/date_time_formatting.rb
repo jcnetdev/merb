@@ -11,13 +11,13 @@ module DateAndTimeFormatting
   module InstanceMethods
     
     
-    # Format a date/time instance using a defined format
+    # Formats a date/time instance using a defined format
     #
     # ==== Parameters
     # format<Symbol>:: of the format key from Date.date_formats
     #
     # ==== Returns
-    # String:: formattred string
+    # String:: formatted string
     # 
     # ==== Example
     #   Time.now.formatted(:rfc822) # => "Sun, 16 Nov 2007 00:21:16 -0800"
@@ -108,7 +108,7 @@ module Ordinalize
   # Ordinalize turns a number into an ordinal string used to denote the
   # position in an ordered sequence such as 1st, 2nd, 3rd, 4th.
   #
-  # Examples
+  # ==== Examples
   #   1.ordinalize     # => "1st"
   #   2.ordinalize     # => "2nd"
   #   1002.ordinalize  # => "1002nd"
@@ -142,7 +142,7 @@ module OrdinalizedFormatting
   # Gives you a relative date in an attractive format
   #
   # ==== Parameters
-  # format<String>:: strftime string used to formatt a time/date object
+  # format<String>:: strftime string used to format a time/date object
   # locale<String, Symbol>:: An optional value which can be used by localization plugins
   #
   # ==== Returns

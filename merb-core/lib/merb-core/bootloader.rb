@@ -255,7 +255,7 @@ class Merb::BootLoader::DropPidFile < Merb::BootLoader
     #
     # :api: plugin
     def run
-      Merb::Server.store_pid("main") #if Merb::Config[:daemonize] || Merb::Config[:cluster]
+      Merb::Server.store_pid("main") if Merb::Config[:daemonize] || Merb::Config[:cluster]
       nil
     end
   end
@@ -402,7 +402,7 @@ class Merb::BootLoader::Dependencies < Merb::BootLoader
   #
   # :api: private
   def self.load_dependencies
-    dependencies.each { |dependency| Kernel.load_dependency(dependency) }
+    dependencies.each { |dependency| Kernel.load_dependency(dependency, nil) }
     nil
   end
 
@@ -434,7 +434,7 @@ class Merb::BootLoader::Dependencies < Merb::BootLoader
     if Merb::Config[:log_file]
       raise "log file should be a string, got: #{Merb::Config[:log_file].inspect}" unless Merb::Config[:log_file].is_a?(String)
       STDOUT.puts "Logging to file at #{Merb::Config[:log_file]}" unless Merb.testing?
-      Merb::Config[:log_stream] = File.open(Merb::Config[:log_file], "w+")
+      Merb::Config[:log_stream] = File.open(Merb::Config[:log_file], "a")
     # but if it's not given, fallback to log stream or stdout
     else
       Merb::Config[:log_stream] ||= STDOUT
@@ -450,7 +450,10 @@ class Merb::BootLoader::Dependencies < Merb::BootLoader
   #
   # :api: private
   def self.set_encoding
-    $KCODE = 'UTF8' if $KCODE == 'NONE' || $KCODE.blank?
+    unless Gem::Version.new(RUBY_VERSION) >= Gem::Version.new("1.9")
+      $KCODE = 'UTF8' if $KCODE == 'NONE' || $KCODE.blank?
+    end
+    
     nil
   end
 
@@ -593,6 +596,7 @@ end
 class Merb::BootLoader::LoadClasses < Merb::BootLoader
   LOADED_CLASSES = {}
   MTIMES = {}
+  FILES_LOADED = {}
 
   class << self
 
@@ -700,7 +704,7 @@ class Merb::BootLoader::LoadClasses < Merb::BootLoader
         @writer.close
 
         # master process stores pid to merb.main.pid
-        Merb::Server.store_pid("main")
+        Merb::Server.store_pid("main") if Merb::Config[:daemonize] || Merb::Config[:cluster]
 
         if Merb::Config[:console_trap]
           Merb.trap("INT") {}
@@ -831,10 +835,26 @@ class Merb::BootLoader::LoadClasses < Merb::BootLoader
     # nil
     #
     # :api: private
-    def load_file(file)
-      # Don't do this expensive operation unless we need to
-      unless Merb::Config[:fork_for_class_load]
+    def load_file(file, reload = false)
+      Merb.logger.verbose! "#{reload ? "re" : ""}loading #{file}"
+      
+      # If we're going to be reloading via constant remove,
+      # keep track of what constants were loaded and what files
+      # have been added, so that the constants can be removed
+      # and the files can be removed from $LOADED_FEAUTRES
+      if !Merb::Config[:fork_for_class_load]
+        if FILES_LOADED[file]
+          FILES_LOADED[file].each {|lf| $LOADED_FEATURES.delete(lf)}
+        end
+        
         klasses = ObjectSpace.classes.dup
+        files_loaded = $LOADED_FEATURES.dup
+      end
+
+      # If we're in the midst of a reload, remove the file
+      # itself from $LOADED_FEATURES so it will get reloaded
+      if reload
+        $LOADED_FEATURES.delete(file) if reload
       end
 
       # Ignore the file for syntax errors. The next time
@@ -849,9 +869,11 @@ class Merb::BootLoader::LoadClasses < Merb::BootLoader
         end
       end
 
-      # Don't do this expensive operation unless we need to
+      # If we're reloading via constant remove, store off the details
+      # after the file has been loaded
       unless Merb::Config[:fork_for_class_load]
         LOADED_CLASSES[file] = ObjectSpace.classes - klasses
+        FILES_LOADED[file] = $LOADED_FEATURES - files_loaded
       end
 
       nil
@@ -900,7 +922,7 @@ class Merb::BootLoader::LoadClasses < Merb::BootLoader
       if Merb::Config[:fork_for_class_load]
         reap_workers(128)
       else
-        remove_classes_in_file(file) { |f| load_file(f) }
+        remove_classes_in_file(file) { |f| load_file(f, true) }
       end
     end
 
