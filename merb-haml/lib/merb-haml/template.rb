@@ -13,7 +13,12 @@ module Merb::Template
     def self.compile_template(io, name, locals, mod)
       path     = File.expand_path(io.path)
       config   = Mash.new(Merb::Plugins.config[:haml].merge(:filename => path))
-      template = ::Haml::Engine.new(io.read, config)
+      
+      # convert config keys to symbols as required by the Haml Engine
+      hash_config = {}
+      config.each{|k, v| hash_config[k.to_sym] = v}
+
+      template = ::Haml::Engine.new(io.read, hash_config)
       template.def_method(mod, name, *locals)
       name
     end
