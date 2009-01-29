@@ -268,7 +268,7 @@ module Merb::Helpers::Form::Builder
     end
 
     def considered_true?(value)
-      value && value != "0" && value != 0
+      value && value != "false" && value != "0" && value != 0
     end
 
     def control_name(method)
