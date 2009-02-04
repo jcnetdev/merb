@@ -239,11 +239,16 @@ describe "text_field" do
     r.should have_selector("input[type=text][name=foo][value=bar]")
   end
 
-  it "should provide an additional label tag if the :label option is passed in" do
+  it "should set the id on the text field to the same as the name" do
     r = @c.render :basic
-    r.should match(/<label>LABEL<\/label>/)
+    r.should have_selector("input[type=text][name=foo][id=foo]")
   end
 
+  it "should render a label tag if the :label option is passed in" do
+    r = @c.render :basic
+    r.should have_selector("label[for=foo]:contains('LABEL')")
+  end
+  
   it "should update an existing :class with a new class" do
     r = @c.render :class
     r.should == "<input type=\"text\" class=\"awesome foobar text\"/>"
@@ -360,7 +365,7 @@ describe "password_field" do
 
   it "should provide an additional label tag if the :label option is passed in" do
     r = @c.render :basic
-    r.should have_selector("label:contains('LABEL')")
+    r.should have_selector("label[for=foo]:contains('LABEL')")
   end
 
   it "should be disabled if :disabled => true is passed in" do
@@ -826,10 +831,12 @@ describe "text_area" do
   #   text_area("CONTENT", nil).should == "<textarea>CONTENT</textarea>"
   # end
 
-  it "should render a label when the label is passed in" do
+  it "should render a label when the :label option is passed in" do
     result = @c.render :label
     result.should match(/<label.*>LABEL<\/label><textarea/)
     result.should_not match_tag(:textarea, :label => "LABEL")
+
+    result.should have_selector("label[for=foo]:contains('LABEL')")
   end
 
   it "should be disabled if :disabled => true is passed in" do
@@ -867,6 +874,11 @@ describe "select" do
   it "should render the select tag with suffix '[]' to name when :multiple => true" do
     r = @c.render :multiple
     r.should match_tag( :select, :name => "foo[]" )
+  end
+  
+  it "should render a label when the :label option is passed in" do
+    result = @c.render :label
+    result.should have_selector("label[for=foo]:contains('LABEL')")
   end
 end
 
@@ -1097,7 +1109,7 @@ describe "file_field" do
 
   it "should wrap the field in a label if the :label option is passed to the file" do
     r = @c.render :with_label
-    r.should have_selector("label:contains('LABEL') + input.file[type=file]")
+    r.should have_selector("label[for=name]:contains('LABEL') + input.file[type=file]")
   end
 
   it "should be disabled if :disabled => true is passed in" do
