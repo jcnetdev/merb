@@ -1143,7 +1143,7 @@ describe "file_field" do
 
   it "should wrap the field in a label if the :label option is passed to the file" do
     r = @c.render :with_label
-    r.should have_selector("label[for=name]:contains('LABEL') + input.file[type=file]")
+    r.should have_selector("label[for=foo]:contains('LABEL') + input.file[type=file]")
   end
 
   it "should be disabled if :disabled => true is passed in" do

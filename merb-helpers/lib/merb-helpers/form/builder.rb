@@ -321,6 +321,8 @@ module Merb::Helpers::Form::Builder
     def unbound_label(attrs = {})
       if attrs[:id]
         label_attrs = {:for => attrs[:id]}
+      elsif attrs[:name]
+        label_attrs = {:for => attrs[:name].snake_case}
       else
         label_attrs = {}
       end
