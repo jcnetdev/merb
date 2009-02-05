@@ -11,14 +11,13 @@ module Merb::Template
     # mod<Class, Module>::
     #   The class or module wherein this method should be defined.
     def self.compile_template(io, name, locals, mod)
-      path     = File.expand_path(io.path)
-      config   = Mash.new(Merb::Plugins.config[:haml].merge(:filename => path))
-      
-      # convert config keys to symbols as required by the Haml Engine
-      hash_config = {}
-      config.each{|k, v| hash_config[k.to_sym] = v}
+      path = File.expand_path(io.path)
+      config = (Merb::Plugins.config[:haml] || {}).inject({}) do |c, (k, v)|
+        c[k.to_sym] = v
+        c
+      end.merge :filename => path
+      template = ::Haml::Engine.new(io.read, config)
 
-      template = ::Haml::Engine.new(io.read, hash_config)
       template.def_method(mod, name, *locals)
       name
     end
